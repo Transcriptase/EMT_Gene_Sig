@@ -1,6 +1,6 @@
 source("http://bioconductor.org/biocLite.R")
 
-cran_libraries <- ("gplots",
+cran_libraries <- c("gplots",
                    "RUnit")
 
 
@@ -17,7 +17,10 @@ bioc_libraries <- c("oligo",
                     'mogene10sttranscriptcluster.db',
                     'mogene10stprobeset.db',
                     'GSA',
-                    'GSEABase')
+                    'GSEABase',
+                    "lumi",
+                    "lumiMouseIDMapping",
+                    "lumiMouseAll.db")
 
 install.packages(cran_libraries)
 biocLite(bioc_libraries)
