@@ -3,6 +3,7 @@ library("lumiMouseIDMapping")
 library("lumiMouseAll.db")
 library("annotate")
 library("mogene10stprobeset.db")
+library("limma")
 
 #find files
 CTR_PATH <- paste(getwd(), 
@@ -35,6 +36,24 @@ batch.trts <- factor(trimAnnot[,"batch"])
 names(batch) <- trimAnnot[,"ID"]
 exp <- factor(trimAnnot[,"group"])
 names(exp) <- trimAnnot[,"ID"]
+
+mapping_info <- as.data.frame(nuID2RefSeqID(probeList,
+                              lib.mapping='lumiMouseIDMapping',
+                              returnAllInfo = TRUE))
+hk.trts <- rep(0, ncol(selDataMatrix))
+names(hk.trts) <- colnames(selDataMatrix)
+hk.names <- c("Gapdh",
+              "Eif1",
+              "Ppp2r1a",
+              "Gsk3a",
+              "Ndufa1",
+              "Actb",
+              "Rpl3",
+              "Ppia",
+              "Col6a1",
+              "Tubb",
+              "Mapkapk2")
+
 batch_design <- model.matrix(~0 + exp + batch.trts)
 batch_fit <- (selDataMatrix, batch_design)
 batch_corrected <- selDataMatrix -
