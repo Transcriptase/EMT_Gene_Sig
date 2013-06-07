@@ -3,7 +3,8 @@ library('GSEABase')
 library('limma')
 
 #WD <- "G:/R Workspace"
-WD <- "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
+#WD <- "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
+WD <- "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 
 
 setwd(WD)
@@ -11,14 +12,13 @@ liver <- read.csv("Liver LM v LMT.csv")
 prostate <- read.csv("MycCaP WT Twist v Vector.csv")
 lung <- read.csv("CRT_CR_results.csv")
 
-e1 <- new.env()
-e1$liver <- liver$Symbol
-e1$prostate <- prostate$Symbol
-e1$lung <- lung$Symbol
-AllComps <- as.list(e1)
-#counts <- venn(AllComps)
 
-shared_genes <- intersect(e1$liver, intersect(e1$lung, e1$prostate))
+liver.sym <- liver$Symbol
+prostate.sym <- prostate$Symbol
+lung.sym <- lung$Symbol
+
+
+shared_genes <- intersect(liver.sym, intersect(lung.sym, prostate.sym))
 #write.csv(shared_genes, "Liver Lung Prostate Shared Gene Sig.csv")
 
 build_table <- function(gene_list){

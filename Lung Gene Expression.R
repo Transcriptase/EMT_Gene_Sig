@@ -43,7 +43,6 @@ mapping_info <- as.data.frame(nuID2RefSeqID(probeList,
 hk.trts <- rep(0, ncol(selDataMatrix))
 names(hk.trts) <- colnames(selDataMatrix)
 hk.names <- c("Gapdh",
-              "Eif1",
               "Ppp2r1a",
               "Gsk3a",
               "Ndufa1",
@@ -62,16 +61,16 @@ gene_values <- function(gene_sym){
 }
 
 hk.values <- sapply(hk.names, gene_values)
+hk.trts <- apply(hk.values, 1, mean)
 
-batch_design <- model.matrix(~0 + exp + batch.trts)
-batch_fit <- (selDataMatrix, batch_design)
+batch_design <- model.matrix(~0 + exp + hk.trts)
+batch_fit <- lmFit(selDataMatrix, batch_design)
 batch_corrected <- selDataMatrix -
-  batchFit$coefficients[,'batch.trtsB')]%*%t(batchDesign[,'batch.trtsB')])
+  batch_fit$coefficients[,'hk.trts']%*%t(batch_design[,'hk.trts'])
 
-fit <- lmFit(selDataMatrix, design)
 CR_CRT.contrasts <- makeContrasts(exprtTATwistRas-expras,
-                                  levels=design)
-fit2 <- eBayes(contrasts.fit(fit, CR_CRT.contrasts))
+                                  levels=batch_design)
+fit2 <- eBayes(contrasts.fit(batch_fit, CR_CRT.contrasts))
 
 fit2$genes$Symbol <- getSYMBOL(fit2$genes$ID,'lumiMouseAll.db')
 #fit2$genes$PMID <- getPMID(fit2$genes$ID,'lumiMouseAll.db')
