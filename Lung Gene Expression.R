@@ -51,8 +51,17 @@ hk.names <- c("Gapdh",
               "Rpl3",
               "Ppia",
               "Col6a1",
-              "Tubb",
               "Mapkapk2")
+
+gene_values <- function(gene_sym){
+  probes <- rownames(mapping_info[which(mapping_info$Symbol == gene_sym),])
+  gene_values <- selDataMatrix[probes,]
+  if (length(probes) > 1) gene_values <- apply(gene_values, 2, mean)
+  med_cent <- gene_values - median(gene_values)
+  return(med_cent)
+}
+
+hk.values <- sapply(hk.names, gene_values)
 
 batch_design <- model.matrix(~0 + exp + batch.trts)
 batch_fit <- (selDataMatrix, batch_design)
