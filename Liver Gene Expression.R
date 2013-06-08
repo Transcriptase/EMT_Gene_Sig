@@ -3,6 +3,10 @@ library("lumiMouseIDMapping")
 library("lumiMouseAll.db")
 library("annotate")
 library("mogene10stprobeset.db")
+library("limma")
+
+WD = "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
+setwd(WD)
 
 PATH = paste(getwd(), "/Raw Liver Data", sep = "")
 file_list <- list.files(path = PATH)
@@ -63,6 +67,28 @@ annot <- cbind(seq(from = 1, to = 20, by = 1),
                c(rep("A", 10), rep("B", 10))
                )
 colnames(annot) <- c("sample", "Id", "oncogene", "site", "batch")
+annot <- as.data.frame(annot)
+annot$exp <- paste(annot$site, annot$oncogene, sep = "_")
 
-batch.trts <- factor(annot[,"batch"])
-site.trts
+batch.trts <- factor(annot$batch)
+exp.trts <- factor(annot$exp)
+
+batch_design <- model.matrix(~0 + exp.trts + batch.trts)
+batch_fit <- lmFit(selDataMatrix, batch_design)
+batch_corrected <- selDataMatrix -
+    batch_fit$coefficients[,'batch.trtsB']%*%t(batch_design[,'batch.trtsB'])
+
+MT_M.contrasts <- makeContrasts(exp.trtsPri_MT-exp.trtsPri_M,
+                                levels=batch_design)
+
+fit2 <- eBayes(contrasts.fit(batch_fit, MT_M.contrasts))
+
+fit2$genes$Symbol <- getSYMBOL(fit2$genes$ID,'lumiMouseAll.db')
+#fit2$genes$PMID <- getPMID(fit2$genes$ID,'lumiMouseAll.db')
+fit2$genes$PMID <- NULL
+fit2$genes$EG <- getEG(fit2$genes$ID,'lumiMouseAll.db')
+fit2$genes$RefSeq <- nuID2RefSeqID(fit2$genes$ID, lib.mapping = "lumiMouseIDMapping")
+
+M_MT_results <- topTable(fit2,number=length(which(topTable(fit2,adjust.method='BH',
+                                                             number=length(fit2$genes$ID))$B<0)),
+                           adjust.method='BH')
