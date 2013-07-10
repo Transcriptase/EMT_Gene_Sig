@@ -5,14 +5,15 @@ library("annotate")
 library("mogene10stprobeset.db")
 library("limma")
 
+WD <- "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 #find files
-CTR_PATH <- paste(getwd(), 
+CTR_PATH <- paste(WD, 
                   "/Raw Lung Data/Ptran_not Normalized_Sample Probe Profile.txt",
                   sep = "")
-CR_PATH <- paste(getwd(),
+CR_PATH <- paste(WD,
                  "/Raw Lung Data/NOT Norm sample Probe Profile-061209.txt",
                  sep ="")
-OTHER_DATA_PATH <- paste(getwd(), 
+OTHER_DATA_PATH <- paste(WD, 
                          "/Raw Lung Data/Not Normalized_Sample Probe Profile_120709.txt",
                          sep = "")
 LIST_PATH <- paste(getwd(),
@@ -84,4 +85,27 @@ CR_CRT_results <- topTable(fit2,number=length(which(topTable(fit2,adjust.method=
                                                                       number=length(fit2$genes$ID))$adj.P.Val<0.05)),
                       adjust.method='BH')
 write.csv(CR_CRT_results, "CRT_CR_results.csv")
+
+full_results <- topTable(fit2, number = length(which(topTable(fit2,adjust.method='BH',
+                                                              number=length(fit2$genes$ID))$P.Val<1)),
+                         adjust.method='BH')
+
+raw_p_plot <- ggplot(full_results, aes(x = P.Value))
+raw_p_plot <- raw_p_plot + 
+  geom_histogram(binwidth = .02,
+                 aes(fill = ..count..)) +
+  scale_fill_gradient("Count", 
+                      low = "dark green",
+                      high = "dark red")
+raw_p_plot
+
+adj_p_plot <- ggplot(full_results, aes(x = adj.P.Val))
+adj_p_plot <- adj_p_plot + 
+  geom_histogram(binwidth = .01,
+                 aes(fill = ..count..)) +
+  scale_fill_gradient("Count", 
+                      low = "dark green",
+                      high = "dark red") +
+  geom_vline(xintercept = .05)
+adj_p_plot
 
