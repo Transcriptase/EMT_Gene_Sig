@@ -10,20 +10,32 @@ library("sva")
 #home wd
 #WD = "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
 #work wd
-WD = "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
+#WD = "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 setwd(WD)
 
 PATH = paste(getwd(), "/Raw Liver Data", sep = "")
 file_list <- list.files(path = PATH)
 file_list <- paste(PATH, file_list, sep = "/")
 
+# read raw data
 x.lumi <- lumiR.batch(file_list, lib.mapping = "lumiMouseIDMapping")
-lumi.T <- lumiT(x.lumi, method = "log2")
+
+# assess quality of RNA in raw data
+boxplot(log2(exprs(x.lumi)),las=2)
+
+# filter bad quality samples
+
+# play around with normalization!!!!
+lumi.T <- lumiT(x.lumi, method = "log2") # may want to try vst, log2 just log transforms
+
+# continue from here!!!
 dataMatrix <- exprs(lumi.T)
 presentCount <- detectionCall(lumi.T)
 selDataMatrix <- dataMatrix[presentCount > 0,]
 probeList <- rownames(selDataMatrix)
 
+### evaluate based upon distribution of expression values
+boxplot(selDataMatrix,las=2,names=annot$sample)
 
 oncogene <- c("M",
               "Normal",
@@ -81,6 +93,14 @@ exp.trts <- factor(annot$exp)
 rawclust <- hclust(dist(t(selDataMatrix)))
 plot(rawclust,
      labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
+                    annot$batch[which(annot$Id == colnames(selDataMatrix))],
+                    sep = " "
+     )
+)
+
+# clustering based upon correlation (less senstive to changes in scale)
+plot(standard.pearson(selDataMatrix),
+          labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
                     annot$batch[which(annot$Id == colnames(selDataMatrix))],
                     sep = " "
      )
