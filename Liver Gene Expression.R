@@ -6,9 +6,10 @@ library("mogene10stprobeset.db")
 library("limma")
 library("ggplot2")
 library("sva")
+library("simpleaffy")
 
 #home wd
-#WD = "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
+WD = "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
 #work wd
 #WD = "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 setwd(WD)
@@ -24,9 +25,13 @@ x.lumi <- lumiR.batch(file_list, lib.mapping = "lumiMouseIDMapping")
 boxplot(log2(exprs(x.lumi)),las=2)
 
 # filter bad quality samples
+bad_samples <- c(15, 20)
+good_samples <- c(1:20)[-bad_samples]
+filtered.lumi <- x.lumi[, good_samples]
+boxplot(log2(exprs(filtered.lumi)), las = 2)
 
 # play around with normalization!!!!
-lumi.T <- lumiT(x.lumi, method = "log2") # may want to try vst, log2 just log transforms
+lumi.T <- lumiT(filtered.lumi, method = "vst") # may want to try vst, log2 just log transforms
 
 # continue from here!!!
 dataMatrix <- exprs(lumi.T)
@@ -86,6 +91,13 @@ annot <- cbind(seq(from = 1, to = 20, by = 1),
 colnames(annot) <- c("sample", "Id", "oncogene", "site", "batch")
 annot <- as.data.frame(annot)
 annot$exp <- paste(annot$site, annot$oncogene, sep = "_")
+annot <- annot[good_samples,]
+
+pri_only <- which(annot$site == "Pri")
+priDataMatrix <- selDataMatrix[,pri_only]
+pri_annot <- annot[pri_only,]
+pri_batch <- factor(pri_annot$batch)
+pri_exp <- factor(pri_annot$exp)
 
 batch.trts <- factor(annot$batch)
 exp.trts <- factor(annot$exp)
@@ -111,16 +123,16 @@ batch_fit <- lmFit(selDataMatrix, batch_design)
 batch_corrected <- selDataMatrix -
     batch_fit$coefficients[,'batch.trtsB']%*%t(batch_design[,'batch.trtsB'])
 
-batchclust <- hclust(dist(t(batch_corrected)))
+batchclust <- standard.pearson(batch_corrected)
 plot(batchclust,
-     labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
-                    annot$batch[which(annot$Id == colnames(selDataMatrix))],
+     labels = paste(annot$exp,
+                    annot$batch,
                     sep = " "
      )
 )
 
 comcorrected <- ComBat(selDataMatrix, annot$batch, annot$exp)
-comclust <- hclust(dist(t(comcorrected)))
+comclust <- plot(standard.pearson(comcorrected), labels = paste(annot$exp, annot$batch))
 plot(comclust,
      labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
                     annot$batch[which(annot$Id == colnames(selDataMatrix))],
@@ -128,11 +140,12 @@ plot(comclust,
      )
 )
 
-
+design <- model.matrix(~0 + exp.trts)
+fit <- lmFit(selDataMatrix, design)
 MT_M.contrasts <- makeContrasts(exp.trtsPri_MT-exp.trtsPri_M,
-                                levels=batch_design)
+                                levels=design)
 
-fit2 <- eBayes(contrasts.fit(batch_fit, MT_M.contrasts))
+fit2 <- eBayes(contrasts.fit(fit, MT_M.contrasts))
 
 fit2$genes$Symbol <- getSYMBOL(fit2$genes$ID,'lumiMouseAll.db')
 #fit2$genes$PMID <- getPMID(fit2$genes$ID,'lumiMouseAll.db')
@@ -150,7 +163,7 @@ raw_p_plot + stat_bin()
 adj_p_plot <- ggplot(M_MT_results, aes(x = adj.P.Val))
 adj_p_plot + stat_bin()
 
-comfit <- lmFit(comcorrected, batch_design)
+comfit <- lmFit(comcorrected, design)
 comfit2 <- eBayes(contrasts.fit(comfit, MT_M.contrasts))
 comfit2$genes$Symbol <- getSYMBOL(comfit2$genes$ID,'lumiMouseAll.db')
 #fit2$genes$PMID <- getPMID(fit2$genes$ID,'lumiMouseAll.db')
@@ -167,3 +180,13 @@ raw_p_plot + stat_bin()
 
 adj_p_plot <- ggplot(comM_MT_results, aes(x = adj.P.Val))
 adj_p_plot + stat_bin()
+
+pri_com <- ComBat(priDataMatrix, pri_annot$batch, pri_annot$exp)
+pri_design <- model.matrix(~0 + pri_exp + pri_batch)
+pri_fit <- lmFit(pri_com, pri_design)
+priMT_M.contrasts <- makeContrasts(pri_expPri_MT-pri_expPri_M,
+                                levels=pri_design)
+pri_fit2 <- eBayes(contrasts.fit(pri_fit, priMT_M.contrasts))
+priM_MT_results <- topTable(pri_fit2,number=length(which(topTable(pri_fit2,adjust.method='BH',
+                                                                 number=length(pri_fit2$genes$ID))$B>0)),
+                            adjust.method='BH')
