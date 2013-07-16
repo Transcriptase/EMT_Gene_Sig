@@ -9,9 +9,9 @@ library("sva")
 library("simpleaffy")
 
 #home wd
-WD = "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
+#WD = "E:/Russell/Documents/GitHub/EMT_Gene_Sig"
 #work wd
-#WD = "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
+WD = "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 setwd(WD)
 
 PATH = paste(getwd(), "/Raw Liver Data", sep = "")
@@ -40,7 +40,7 @@ selDataMatrix <- dataMatrix[presentCount > 0,]
 probeList <- rownames(selDataMatrix)
 
 ### evaluate based upon distribution of expression values
-boxplot(selDataMatrix,las=2,names=annot$sample)
+
 
 oncogene <- c("M",
               "Normal",
@@ -93,6 +93,8 @@ annot <- as.data.frame(annot)
 annot$exp <- paste(annot$site, annot$oncogene, sep = "_")
 annot <- annot[good_samples,]
 
+boxplot(selDataMatrix,las=2,names=annot$sample)
+
 pri_only <- which(annot$site == "Pri")
 priDataMatrix <- selDataMatrix[,pri_only]
 pri_annot <- annot[pri_only,]
@@ -104,16 +106,16 @@ exp.trts <- factor(annot$exp)
 
 rawclust <- hclust(dist(t(selDataMatrix)))
 plot(rawclust,
-     labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
-                    annot$batch[which(annot$Id == colnames(selDataMatrix))],
+     labels = paste(annot$exp,
+                    annot$batch,
                     sep = " "
      )
 )
 
 # clustering based upon correlation (less senstive to changes in scale)
 plot(standard.pearson(selDataMatrix),
-          labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
-                    annot$batch[which(annot$Id == colnames(selDataMatrix))],
+          labels = paste(annot$exp,
+                    annot$batch,
                     sep = " "
      )
 )
@@ -132,13 +134,15 @@ plot(batchclust,
 )
 
 comcorrected <- ComBat(selDataMatrix, annot$batch, annot$exp)
-comclust <- plot(standard.pearson(comcorrected), labels = paste(annot$exp, annot$batch))
+comclust <- standard.pearson(comcorrected)
 plot(comclust,
-     labels = paste(annot$exp[which(annot$Id == colnames(selDataMatrix))],
-                    annot$batch[which(annot$Id == colnames(selDataMatrix))],
+     labels = paste(annot$exp,
+                    annot$batch,
                     sep = " "
      )
 )
+
+
 
 design <- model.matrix(~0 + exp.trts)
 fit <- lmFit(selDataMatrix, design)
@@ -152,6 +156,7 @@ fit2$genes$Symbol <- getSYMBOL(fit2$genes$ID,'lumiMouseAll.db')
 fit2$genes$PMID <- NULL
 fit2$genes$EG <- getEG(fit2$genes$ID,'lumiMouseAll.db')
 fit2$genes$RefSeq <- nuID2RefSeqID(fit2$genes$ID, lib.mapping = "lumiMouseIDMapping")
+
 
 M_MT_results <- topTable(fit2,number=length(which(topTable(fit2,adjust.method='BH',
                                                              number=length(fit2$genes$ID))$adj.P.Val<1)),
@@ -181,12 +186,70 @@ raw_p_plot + stat_bin()
 adj_p_plot <- ggplot(comM_MT_results, aes(x = adj.P.Val))
 adj_p_plot + stat_bin()
 
+priDataMatrix <- normalizeBetweenArrays()
 pri_com <- ComBat(priDataMatrix, pri_annot$batch, pri_annot$exp)
+pricom_clust <- standard.pearson(pri_com)
+plot(pricom_clust, labels = pri_annot$oncogene)
 pri_design <- model.matrix(~0 + pri_exp + pri_batch)
 pri_fit <- lmFit(pri_com, pri_design)
 priMT_M.contrasts <- makeContrasts(pri_expPri_MT-pri_expPri_M,
                                 levels=pri_design)
 pri_fit2 <- eBayes(contrasts.fit(pri_fit, priMT_M.contrasts))
 priM_MT_results <- topTable(pri_fit2,number=length(which(topTable(pri_fit2,adjust.method='BH',
-                                                                 number=length(pri_fit2$genes$ID))$B>0)),
+                                                                 number=length(pri_fit2$genes$ID))$adj.P.Val<1)),
                             adjust.method='BH')
+
+raw_p_plot <- ggplot(priM_MT_results, aes(x = P.Value))
+raw_p_plot + stat_bin()
+
+adj_p_plot <- ggplot(priM_MT_results, aes(x = adj.P.Val))
+adj_p_plot + stat_bin()
+
+#ID Myc-only samples
+myc_samples <- colnames(priDataMatrix)[which(pri_annot$oncogene == "M")]
+
+#init vector to track twist expression
+twist.trts <- rep(0, ncol(priDataMatrix))
+names(twist.trts) <- colnames(priDataMatrix)
+
+#get Twist values
+twist_values <- priDataMatrix[which(getSYMBOL(rownames(priDataMatrix), "lumiMouseAll.db")== "Twist1"),]
+
+twiDataMatrix <- priDataMatrix[, which(colnames(priDataMatrix) != "DB09_D4399_PriM")]
+twi_annot <- pri_annot[1:8,]
+twi_batch <- factor(twi_annot$batch)
+twi_exp <- factor(twi_annot$exp)
+twi_clust <- standard.pearson(twiDataMatrix)
+plot(twi_clust)
+
+twi_design <- model.matrix(~0 + twi_exp + twi_batch)
+twiMT_M.contrasts <- makeContrasts(twi_expPri_MT-twi_expPri_M,
+                                   levels=twi_design)
+
+fit <- lmFit(twiDataMatrix, twi_design)
+fit2 <- eBayes(contrasts.fit(fit, twiMT_M.contrasts))
+
+fit2$genes$Symbol <- getSYMBOL(twi_fit2$genes$ID,'lumiMouseAll.db')
+fit2$genes$RefSeq <- nuID2RefSeqID(twi_fit2$genes$ID, lib.mapping = "lumiMouseIDMapping")
+results <- topTable(fit2,number=length(which(topTable(fit2,adjust.method='BH',
+                                                      number=length(fit2$genes$ID))$adj.P.Val<.05)),
+                    adjust.method='BH')
+genes_only <- results[which(results$Symbol != "NA"),]
+write.csv(genes_only, "Liver Differential Genes.csv")
+
+twiDataMatrix <- normalizeBetweenArrays(twiDataMatrix, method  = "cyclicloess")
+twi_com <- ComBat(twiDataMatrix, twi_annot$batch, twi_annot$exp)
+
+twi_fit <- lmFit(twi_com, twi_design)
+
+twi_fit2 <- eBayes(contrasts.fit(twi_fit, twiMT_M.contrasts))
+twi_fit2$genes$Symbol <- getSYMBOL(twi_fit2$genes$ID,'lumiMouseAll.db')
+#fit2$genes$PMID <- getPMID(fit2$genes$ID,'lumiMouseAll.db')
+twi_fit2$genes$PMID <- NULL
+twi_fit2$genes$EG <- getEG(twi_fit2$genes$ID,'lumiMouseAll.db')
+twi_fit2$genes$RefSeq <- nuID2RefSeqID(twi_fit2$genes$ID, lib.mapping = "lumiMouseIDMapping")
+twiM_MT_results <- topTable(twi_fit2,number=length(which(topTable(twi_fit2,adjust.method='BH',
+                                                                  number=length(twi_fit2$genes$ID))$B>0)),
+                            adjust.method='BH')
+genes_only <- twiM_MT_results[which(twiM_MT_results$Symbol != "NA"),]
+write.csv(genes_only, "Liver Differential Genes.csv")

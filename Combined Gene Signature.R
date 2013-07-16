@@ -8,8 +8,8 @@ WD <- "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 
 
 setwd(WD)
-liver <- read.csv("Liver LM v LMT.csv")
-prostate <- read.csv("MycCaP WT Twist v Vector.csv")
+liver <- read.csv("Liver Differential Genes.csv")
+prostate <- read.csv("MycCaP Twist v Vector Gene Expression.csv")
 lung <- read.csv("CRT_CR_results.csv")
 
 
@@ -24,13 +24,12 @@ shared_genes <- intersect(liver.sym, intersect(lung.sym, prostate.sym))
 build_table <- function(gene_list){
     full_table<-data.frame(row.names = gene_list)
     full_table$p.lung <- lung$adj.P.Val[which(unique(lung$Symbol)%in%shared_genes)]
-    full_table$fc.lung <- 2^lung$logFC[which(unique(lung$Symbol)%in%shared_genes)]
+    full_table$fc.lung <- lung$logFC[which(unique(lung$Symbol)%in%shared_genes)]
     #full_table$direction.lung
-    full_table$p.liver <- liver$Corrected.p.value[which(unique(liver$Symbol)%in%shared_genes)]
-    full_table$fc.liver <- liver$FCAbsolute[which(unique(liver$Symbol)%in%shared_genes)]
-    full_table$direction.liver <- liver$regulation[which(unique(liver$Symbol)%in%shared_genes)]
+    full_table$p.liver <- liver$adj.P.Val[which(unique(liver$Symbol)%in%shared_genes)]
+    full_table$fc.liver <- liver$logFC[which(unique(liver$Symbol)%in%shared_genes)]
     full_table$p.prostate <- prostate$adj.P.Val[which(unique(prostate$Symbol)%in%shared_genes)]
-    full_table$fc.prostate <- 2^prostate$logFC[which(unique(lung$Symbol)%in%shared_genes)]
+    full_table$fc.prostate <- prostate$logFC[which(unique(lung$Symbol)%in%shared_genes)]
     #full_table$direction.prostate <- apply(prostate$logFC, 1, function(x) if (x>0) return ("up") else return ("down"))
     return(full_table)
 }

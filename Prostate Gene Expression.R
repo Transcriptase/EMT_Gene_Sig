@@ -1,4 +1,4 @@
-library(oligo)
+library("oligo")
 library('AnnotationDbi')
 library('limma')
 library('pd.mogene.1.0.st.v1')
@@ -95,11 +95,11 @@ WTVec.contrasts <- makeContrasts(exp.trtsWT-exp.trtsVEC,
 #get est. coeefs and stderrs, smoothed with bayesian technique
 WTVec.contrast.fit <- eBayes(contrasts.fit(batchFit[probesSelect,],
                                            WTVec.contrasts))
-#not sure i understand this data structure, but this annotates the results with gene symbols
+
 WTVec.contrast.fit$genes$Symbol <- getSYMBOL(WTVec.contrast.fit$genes$ID,'mogene10sttranscriptcluster.db')
 
 #returns the top genes, benjamini-hochberg corrected, B > 0 is the criteria how is this related to adjsuted p-value?
 prostate_results <- topTable(WTVec.contrast.fit,number=length(which(topTable(WTVec.contrast.fit,adjust.method='BH',
-                                                                      number=length(probesSelect))$B>0)),
+                                                                      number=length(probesSelect))$adj.P.Val<0.05)),
                       adjust.method='BH')
 write.csv(prostate_results, "MycCap Twist v Vector Gene Expression.csv")

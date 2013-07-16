@@ -4,6 +4,8 @@ library("lumiMouseAll.db")
 library("annotate")
 library("mogene10stprobeset.db")
 library("limma")
+library("sva")
+library("simpleaffy")
 
 WD <- "C:/Users/rwill127/Documents/GitHub/EMT_Gene_Sig"
 #find files
@@ -68,6 +70,21 @@ batch_design <- model.matrix(~0 + exp + hk.trts)
 batch_fit <- lmFit(selDataMatrix, batch_design)
 batch_corrected <- selDataMatrix -
   batch_fit$coefficients[,'hk.trts']%*%t(batch_design[,'hk.trts'])
+
+plot(standard.pearson(batch_corrected), labels = paste(trimAnnot$group,
+                                                       trimAnnot$batch))
+
+normDataMatrix <- normalizeBetweenArrays(selDataMatrix, method = "cyclicloess")
+model <- model.matrix(~0 + exp)
+fit <- lmFit(normDataMatrix, model)
+contrasts <- makeContrasts(exprtTATwistRas-expras,
+                         levels=model)
+norm_fit2 <- eBayes(contrasts.fit(fit, contrasts))
+norm_fit2$genes$Symbol <- getSYMBOL(norm_fit2$genes$ID,'lumiMouseAll.db')
+norm_results <- topTable(norm_fit2,number=length(which(topTable(norm_fit2,adjust.method='BH',
+                                                             number=length(norm_fit2$genes$ID))$adj.P.Val<0.05)),
+                           adjust.method='BH')
+write.csv(norm_results, "CRT_CR_results.csv")
 
 CR_CRT.contrasts <- makeContrasts(exprtTATwistRas-expras,
                                   levels=batch_design)
